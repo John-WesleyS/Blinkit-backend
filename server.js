@@ -5,7 +5,6 @@ require("dotenv").config();
 const connectDB = require("./config/db");
 const { verifyToken, verifyAdmin } = require("./middleware/verifyToken");
 
-
 const authRoutes = require("./routes/Auth");
 
 const Customer = require("./models/CustomerSchema");
@@ -14,10 +13,18 @@ const Product = require("./models/ProductsSchema");
 
 const app = express();
 
-app.use(cors({
-  origin: "https://blinkit-frontend-j381.vercel.app",
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || origin.includes("vercel.app")) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }),
+);
 
 // app.use(cors());
 app.use(express.json());
@@ -25,9 +32,6 @@ app.use(express.json());
 connectDB();
 
 app.use("/", authRoutes);
-
-
-
 
 app.post("/AdminCart", verifyToken, verifyAdmin, async (req, res) => {
   try {
