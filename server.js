@@ -15,7 +15,7 @@ const Product = require("./models/ProductsSchema");
 const app = express();
 
 app.use(cors({
-  origin: "https://blinkit-frontend-j381.vercel.app/",
+  origin: "https://blinkit-frontend-j381.vercel.app",
   credentials: true
 }));
 
