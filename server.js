@@ -14,12 +14,17 @@ const Product = require("./models/ProductsSchema");
 
 const app = express();
 
-app.use(cors());
+// app.use(cors());
 app.use(express.json());
 
 connectDB();
 
 app.use("/", authRoutes);
+
+app.use(cors({
+  origin: "https://blinkit-frontend-j381.vercel.app/",
+  credentials: true
+}));
 
 
 app.post("/AdminCart", verifyToken, verifyAdmin, async (req, res) => {
