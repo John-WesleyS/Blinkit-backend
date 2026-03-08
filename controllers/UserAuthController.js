@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const Customer = require("../models/CustomerSchema");
 
-const UserSignin= async (req, res) => {
+const UserSignin = async (req, res) => {
   try {
     const { name, email, phone, state, city, area, doorNumber, password } =
       req.body;
@@ -26,18 +26,34 @@ const UserSignin= async (req, res) => {
   }
 };
 
-const UserLogin= async (req, res) => {
-  const { email, password } = req.body;
-  const user = await Customer.findOne({ email });
-  if (!user) return res.status(400).json({ message: "No user" });
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(400).json({ message: "Wrong pass" });
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: "1d",
-  });
-  res.json({ token });
+const UserLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await Customer.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({ message: "No user found" });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+
+    if (!match) {
+      return res.status(400).json({ message: "Wrong password" });
+    }
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    res.json({ token });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
-module.exports={
-  UserLogin,UserSignin
-}
+module.exports = {
+  UserLogin,
+  UserSignin,
+};

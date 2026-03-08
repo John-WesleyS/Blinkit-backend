@@ -13,6 +13,9 @@ const Product = require("./models/ProductsSchema");
 
 const app = express();
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -32,6 +35,10 @@ app.use(express.json());
 connectDB();
 
 app.use("/", authRoutes);
+
+app.get("/", (req, res) => {
+  res.send("Blinkit Backend Running");
+});
 
 app.post("/AdminCart", verifyToken, verifyAdmin, async (req, res) => {
   try {
