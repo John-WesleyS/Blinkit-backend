@@ -4,8 +4,10 @@ require("dotenv").config();
 
 const connectDB = require("./config/db");
 const { verifyToken, verifyAdmin } = require("./middleware/verifyToken");
-
+const chatbotRoutes = require("./controllers/Chatbot");
+// const authRoutes = require("./routes/Auth");
 const authRoutes = require("./routes/Auth");
+// const chatbotRoutes = require("./controllers/Chatbot");
 
 const Customer = require("./models/CustomerSchema");
 const Admin = require("./models/AdminSchema");
@@ -38,6 +40,7 @@ console.log("MONGO_URI:", process.env.MONGO_URI);
 connectDB();
 
 app.use("/", authRoutes);
+app.use("/", chatbotRoutes);
 
 app.get("/", (req, res) => {
   res.send("Blinkit Backend Running");

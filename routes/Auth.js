@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
 
+// const chatbotRoutes = require("./controllers/chatbot");
 const { UserSignin, UserLogin } = require("../controllers/UserAuthController");
 const {AdminLogin,AdminSignin}=require("../controllers/AdminAuthController")
-
 
 router.post("/signin", UserSignin);
 router.post("/login", UserLogin);
