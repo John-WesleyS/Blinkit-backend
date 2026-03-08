@@ -32,6 +32,9 @@ app.use(
 // app.use(cors());
 app.use(express.json());
 
+console.log("JWT_SECRET:", process.env.JWT_SECRET);
+console.log("MONGO_URI:", process.env.MONGO_URI);
+
 connectDB();
 
 app.use("/", authRoutes);
