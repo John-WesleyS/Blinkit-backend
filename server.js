@@ -4,7 +4,7 @@ require("dotenv").config();
 
 const connectDB = require("./config/db");
 const { verifyToken, verifyAdmin } = require("./middleware/verifyToken");
-const chatbotRoutes = require("./controllers/Chatbot");
+const chatbotRoutes = require("./controllers/chatbot");
 // const authRoutes = require("./routes/Auth");
 const authRoutes = require("./routes/Auth");
 // const chatbotRoutes = require("./controllers/Chatbot");
@@ -38,6 +38,8 @@ console.log("JWT_SECRET:", process.env.JWT_SECRET);
 console.log("MONGO_URI:", process.env.MONGO_URI);
 
 connectDB();
+
+require("./services/cronJobs"); // Initialize cron jobs
 
 app.use("/", authRoutes);
 app.use("/", chatbotRoutes);
