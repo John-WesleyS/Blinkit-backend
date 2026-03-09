@@ -7,6 +7,7 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD, // Use app-specific password for Gmail
   },
 });
+//comments are added for git purpose
 
 const sendEmail = async (to, subject, htmlContent) => {
   try {
