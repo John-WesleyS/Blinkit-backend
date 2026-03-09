@@ -21,7 +21,17 @@ router.post("/chatbot", async (req, res) => {
     res.json({ reply: result.response.text() });
   } catch (error) {
     console.error("Chatbot error details:", error.message, error.stack);
-    res.status(500).json({ error: error.message || "Chatbot error" });
+    if (error.status === 404) {
+      return res.status(500).json({
+        error: "Gemini model not found. This usually means the API key is incorrect or doesn't have access to gemini-1.5-flash."
+      });
+    }
+
+    // Provide a human-readable fallback for frontend so it doesn't break
+    res.status(500).json({
+      error: error.message || "Chatbot error",
+      reply: "Sorry, I am having trouble connecting to my brain right now. Please check the server logs or API key."
+    });
   }
 });
 
