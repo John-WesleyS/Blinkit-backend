@@ -4,7 +4,7 @@ require("dotenv").config();
 
 const connectDB = require("./config/db");
 const { verifyToken, verifyAdmin } = require("./middleware/verifyToken");
-const chatbotRoutes = require("./controllers/chatbot");
+const chatbotRoutes = require("./controllers/Chatbot");
 // const authRoutes = require("./routes/Auth");
 const authRoutes = require("./routes/Auth");
 // const chatbotRoutes = require("./controllers/Chatbot");
@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || origin.includes("vercel.app")) {
+      if (!origin || origin.includes("vercel.app") || origin.includes("localhost")) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
