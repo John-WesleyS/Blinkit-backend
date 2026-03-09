@@ -17,9 +17,8 @@ router.post("/chatbot", async (req, res) => {
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(message);
-    const response = await result.response;
 
-    res.json({ reply: await response.text() });
+    res.json({ reply: result.response.text() });
   } catch (error) {
     console.error("Chatbot error details:", error.message, error.stack);
     res.status(500).json({ error: error.message || "Chatbot error" });
