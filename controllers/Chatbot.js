@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 //git push
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 router.post("/chatbot", async (req, res) => {
   try {
@@ -15,6 +14,7 @@ router.post("/chatbot", async (req, res) => {
       return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
     }
 
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(message);
 
