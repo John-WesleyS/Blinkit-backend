@@ -17,6 +17,7 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+connectDB();
 
 app.use(
   cors({
@@ -37,7 +38,7 @@ app.use(express.json());
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
 console.log("MONGO_URI:", process.env.MONGO_URI);
 
-connectDB();
+// connectDB();
 
 require("./services/cronJobs"); // Initialize cron jobs
 
