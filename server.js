@@ -52,7 +52,7 @@ app.get("/", (req, res) => {
 app.get("/email-test", async (req, res) => {
   try {
     await sendEmail(
-      "yourgmail@gmail.com",
+      "johnwesleybarre588@gmail.com",
       "Blinkit Test",
       "<h2>Email system works</h2>"
     );
