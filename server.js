@@ -12,6 +12,7 @@ const authRoutes = require("./routes/Auth");
 const Customer = require("./models/CustomerSchema");
 const Admin = require("./models/AdminSchema");
 const Product = require("./models/ProductsSchema");
+const { sendEmail } = require("./services/emailService");
 
 const app = express();
 

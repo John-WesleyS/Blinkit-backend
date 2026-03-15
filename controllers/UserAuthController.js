@@ -21,14 +21,14 @@ const UserSignin = async (req, res) => {
       doorNumber,
       password: hash,
     }).save();
-    res.json({ userId: user._id });
-
-    // Send welcome email (non-blocking)
-    sendEmail(
+    // Send welcome email (blocking for serverless)
+    await sendEmail(
       user.email,
       "Welcome to Blinkit!",
       `<h2>Welcome ${user.name}!</h2><p>Thank you for signing up with Blinkit.</p><p>Your account has been created successfully.</p><p>You can now login and start shopping!</p>`,
     ).catch((err) => console.error("Signup email error:", err));
+
+    res.json({ userId: user._id });
   } catch (e) {
     res.status(500).json({ error: e });
   }
@@ -57,13 +57,11 @@ const UserLogin = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    res.json({ token });
-
-    // Send login notification email (non-blocking)
+    // Send login notification email (blocking for serverless)
     if (user.emailPreferences !== "none") {
       console.log("Attempting to send login email to:", user.email);
 
-      sendEmail(
+      await sendEmail(
         user.email,
         "Welcome back to Blinkit!",
         `<h2>Hi ${user.name}!</h2>
@@ -71,6 +69,8 @@ const UserLogin = async (req, res) => {
      <p>Login time: ${new Date().toLocaleString()}</p>`,
       ).catch((err) => console.error("Login email error:", err));
     }
+
+    res.json({ token });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Server error" });

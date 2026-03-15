@@ -17,14 +17,14 @@ const AdminSignin= async (req, res) => {
       role,
       password: hash,
     }).save();
-    res.json({ AdminId: admin._id });
-
-    // Send admin welcome email (non-blocking)
-    sendEmail(
+    // Send admin welcome email (blocking for serverless)
+    await sendEmail(
       admin.email,
       "Admin Account Created - Blinkit",
       `<h2>Welcome ${admin.name}!</h2><p>Your admin account has been created successfully.</p><p>Role: ${admin.role}</p><p>You can now login to manage the platform.</p>`
     ).catch(err => console.error("Admin signup email error:", err));
+
+    res.json({ AdminId: admin._id });
   } catch (e) {
     res.status(500).json({ error: e });
   }
@@ -44,14 +44,14 @@ const AdminLogin= async (req, res) => {
       expiresIn: "1d",
     });
 
-    res.json({ token }); // fixed
-
-    // Send admin login notification email (non-blocking)
-    sendEmail(
+    // Send admin login notification email (blocking for serverless)
+    await sendEmail(
       user.email,
       "Admin Login Alert - Blinkit",
       `<h2>Hi ${user.name}!</h2><p>You have successfully logged in to your admin account.</p><p>Login time: ${new Date().toLocaleString()}</p><p>Role: ${user.role}</p><p>If this wasn't you, please secure your account immediately.</p>`
     ).catch(err => console.error("Admin login email error:", err));
+
+    res.json({ token }); // fixed
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
