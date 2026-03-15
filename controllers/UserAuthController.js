@@ -61,10 +61,14 @@ const UserLogin = async (req, res) => {
 
     // Send login notification email (non-blocking)
     if (user.emailPreferences !== "none") {
+      console.log("Attempting to send login email to:", user.email);
+
       sendEmail(
         user.email,
         "Welcome back to Blinkit!",
-        `<h2>Hi ${user.name}!</h2><p>You have successfully logged in to your Blinkit account.</p><p>Login time: ${new Date().toLocaleString()}</p><p>If this wasn't you, please contact support immediately.</p>`,
+        `<h2>Hi ${user.name}!</h2>
+     <p>You have successfully logged in.</p>
+     <p>Login time: ${new Date().toLocaleString()}</p>`,
       ).catch((err) => console.error("Login email error:", err));
     }
   } catch (error) {
