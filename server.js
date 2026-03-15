@@ -49,6 +49,20 @@ app.get("/", (req, res) => {
   res.send("Blinkit Backend Running");
 });
 
+app.get("/email-test", async (req, res) => {
+  try {
+    await sendEmail(
+      "yourgmail@gmail.com",
+      "Blinkit Test",
+      "<h2>Email system works</h2>"
+    );
+
+    res.send("Email sent");
+  } catch (err) {
+    res.send(err.message);
+  }
+});
+
 app.post("/AdminCart", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const {
