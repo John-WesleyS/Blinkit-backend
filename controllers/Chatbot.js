@@ -1,9 +1,46 @@
 const express = require("express");
 const router = express.Router();
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Initialize Gemini once
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GEMINI_MODEL = "gemini-2.5-flash";
+
+async function getGeminiResponse(userMessage) {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) {
+    return "Missing Gemini API key. Add GEMINI_API_KEY in your .env file and restart the app.";
+  }
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: userMessage }],
+          },
+        ],
+      }),
+    }
+    );
+
+    const data = await response.json();
+    console.log("Gemini raw response:", data);
+
+    if (!response.ok) {
+      return data.error?.message || "Gemini API error";
+    }
+
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from Gemini.";
+  } catch (err) {
+    console.error(err);
+    return "Network error";
+  }
+}
 
 router.post("/chatbot", async (req, res) => {
   try {
@@ -17,32 +54,7 @@ router.post("/chatbot", async (req, res) => {
       });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: "Gemini API key not configured on server",
-      });
-    }
-
-    // Get Gemini model
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-    });
-
-    // Generate response
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: message }],
-        },
-      ],
-    });
-
-    const response = result.response;
-
-    const reply =
-      response?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Sorry, I couldn't generate a response.";
+    const reply = await getGeminiResponse(message);
 
     res.json({
       reply,
