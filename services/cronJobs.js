@@ -1,22 +1,51 @@
 const cron = require("node-cron");
 const { sendEmail } = require("./emailService");
+
 const User = require("../models/CustomerSchema");
 const Product = require("../models/ProductsSchema");
 const Admin = require("../models/AdminSchema");
 
+const redisClient = require("../config/RedisClient");
+
 console.log("Cron Jobs Initialized...");
 
-// 1️⃣ Daily: Expired products alert to admins (9 AM)
+/* ------------------------------------------------ */
+/* 1️⃣ DAILY EXPIRED PRODUCT ALERT (9 AM) */
+/* ------------------------------------------------ */
+
 cron.schedule("0 9 * * *", async () => {
   console.log("Running Expired Products Cron Job...");
 
   try {
-    const expiredProducts = await Product.find({
-      dateOfExpiry: { $lt: new Date() },
-    });
+    const cacheKey = "expiredProducts";
+
+    let expiredProducts = null;
+
+    try {
+      const cachedProducts = await redisClient.get(cacheKey);
+
+      if (cachedProducts) {
+        expiredProducts = JSON.parse(cachedProducts);
+        console.log("Using cached expired products");
+      }
+    } catch (err) {
+      console.error("Redis Get Error (Expired Products):", err.message);
+    }
+    
+    if (!expiredProducts) {
+      expiredProducts = await Product.find({
+        dateOfExpiry: { $lt: new Date() },
+      }).lean();
+
+      try {
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(expiredProducts));
+      } catch (err) {
+        console.error("Redis Set Error (Expired Products):", err.message);
+      }
+    }
 
     if (expiredProducts.length === 0) {
-      console.log("No expired products found.");
+      console.log("No expired products");
       return;
     }
 
@@ -26,44 +55,86 @@ cron.schedule("0 9 * * *", async () => {
       .map(
         (p) =>
           `<li>${p.name} - Expired on ${new Date(
-            p.dateOfExpiry
-          ).toLocaleDateString()}</li>`
+            p.dateOfExpiry,
+          ).toLocaleDateString()}</li>`,
       )
       .join("");
 
     await Promise.all(
       admins.map(async (admin) => {
+        const emailKey = `expiredEmail:${admin.email}`;
+
+        let alreadySent = false;
         try {
-          await sendEmail(
-            admin.email,
-            "⚠️ Expired Products Alert",
-            `<h2>Expired Products Found</h2>
-             <ul>${productList}</ul>
-             <p>Please remove these from inventory.</p>`
-          );
+          alreadySent = await redisClient.get(emailKey);
         } catch (err) {
-          console.error(`Email failed for admin ${admin.email}:`, err.message);
+          console.error(`Redis Get Error (Email Sent Check for ${admin.email}):`, err.message);
         }
-      })
+
+        if (alreadySent) {
+          console.log("Email already sent today:", admin.email);
+          return;
+        }
+
+        await sendEmail(
+          admin.email,
+          "⚠️ Expired Products Alert",
+          `<h2>Expired Products Found</h2>
+           <ul>${productList}</ul>
+           <p>Please remove these products from inventory.</p>`,
+        );
+
+        try {
+            await redisClient.setEx(emailKey, 86400, "sent");
+        } catch (err) {
+            console.error(`Redis Set Error (Email Sent Check for ${admin.email}):`, err.message);
+        }
+      }),
     );
 
-    console.log("Expired product alert emails sent.");
-  } catch (error) {
-    console.error("Expired products cron error:", error);
+    console.log("Expired product emails sent");
+  } catch (err) {
+    console.error("Expired cron error:", err);
   }
 });
 
-// 2️⃣ Bi-daily: Low stock alert to admins (8 AM & 6 PM)
+/* ------------------------------------------------ */
+/* 2️⃣ LOW STOCK ALERT (8 AM & 6 PM) */
+/* ------------------------------------------------ */
+
 cron.schedule("0 8,18 * * *", async () => {
   console.log("Running Low Stock Cron Job...");
 
   try {
-    const lowStockProducts = await Product.find({
-      piecesAvailable: { $lt: 10 },
-    });
+    const cacheKey = "lowStockProducts";
+
+    let lowStockProducts = null;
+
+    try {
+      const cachedProducts = await redisClient.get(cacheKey);
+
+      if (cachedProducts) {
+        lowStockProducts = JSON.parse(cachedProducts);
+        console.log("Using cached low stock products");
+      }
+    } catch (err) {
+      console.error("Redis Get Error (Low Stock):", err.message);
+    }
+    
+    if (!lowStockProducts) {
+      lowStockProducts = await Product.find({
+        piecesAvailable: { $lt: 10 },
+      }).lean();
+
+      try {
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(lowStockProducts));
+      } catch (err) {
+        console.error("Redis Set Error (Low Stock):", err.message);
+      }
+    }
 
     if (lowStockProducts.length === 0) {
-      console.log("No low stock products.");
+      console.log("No low stock products");
       return;
     }
 
@@ -75,31 +146,58 @@ cron.schedule("0 8,18 * * *", async () => {
 
     await Promise.all(
       admins.map(async (admin) => {
-        try {
-          await sendEmail(
-            admin.email,
-            "📦 Low Stock Alert",
-            `<h2>Low Stock Products</h2><ul>${productList}</ul>`
-          );
-        } catch (err) {
-          console.error(`Email failed for admin ${admin.email}:`, err.message);
-        }
-      })
+        await sendEmail(
+          admin.email,
+          "📦 Low Stock Alert",
+          `<h2>Low Stock Products</h2>
+           <ul>${productList}</ul>
+           <p>Please restock these products.</p>`,
+        );
+      }),
     );
 
-    console.log("Low stock alert emails sent.");
-  } catch (error) {
-    console.error("Low stock cron error:", error);
+    console.log("Low stock emails sent");
+  } catch (err) {
+    console.error("Low stock cron error:", err);
   }
 });
 
-// 3️⃣ Weekly: Promotional email to active customers (Monday 10 AM)
+/* ------------------------------------------------ */
+/* 3️⃣ WEEKLY PROMOTION EMAIL (MONDAY 10 AM) */
+/* ------------------------------------------------ */
+
 cron.schedule("0 10 * * 1", async () => {
   console.log("Running Weekly Promotion Cron Job...");
 
   try {
-    const customers = await User.find({ emailPreferences: { $ne: "none" } });
-    const topProducts = await Product.find().limit(5);
+    const cacheKey = "weeklyTopProducts";
+
+    let topProducts = null;
+
+    try {
+      const cachedProducts = await redisClient.get(cacheKey);
+
+      if (cachedProducts) {
+        topProducts = JSON.parse(cachedProducts);
+        console.log("Using cached promotion products");
+      }
+    } catch (err) {
+        console.error("Redis Get Error (Promotions):", err.message);
+    }
+    
+    if (!topProducts) {
+      topProducts = await Product.find().limit(5).lean();
+
+      try {
+          await redisClient.setEx(cacheKey, 86400, JSON.stringify(topProducts));
+      } catch (err) {
+          console.error("Redis Set Error (Promotions):", err.message);
+      }
+    }
+
+    const customers = await User.find({
+      emailPreferences: { $ne: "none" },
+    });
 
     const productPromo = topProducts
       .map((p) => `<li>${p.name} - ₹${p.finalPrice}</li>`)
@@ -107,30 +205,27 @@ cron.schedule("0 10 * * 1", async () => {
 
     await Promise.all(
       customers.map(async (customer) => {
-        try {
-          await sendEmail(
-            customer.email,
-            "🎉 Exclusive Weekly Deals Just for You!",
-            `<h2>Hi ${customer.name}!</h2>
-             <p>Check out our top products this week:</p>
-             <ul>${productPromo}</ul>`
-          );
-        } catch (err) {
-          console.error(
-            `Promo email failed for ${customer.email}:`,
-            err.message
-          );
-        }
-      })
+        await sendEmail(
+          customer.email,
+          "🎉 Exclusive Weekly Deals!",
+          `<h2>Hi ${customer.name}</h2>
+           <p>Here are this week's best deals:</p>
+           <ul>${productPromo}</ul>
+           <p>Shop now before they run out!</p>`,
+        );
+      }),
     );
 
-    console.log("Promotional emails sent.");
-  } catch (error) {
-    console.error("Promotional email cron error:", error);
+    console.log("Promotional emails sent");
+  } catch (err) {
+    console.error("Promotion cron error:", err);
   }
 });
 
-// 4️⃣ Daily: Inactive user engagement email (7 AM)
+/* ------------------------------------------------ */
+/* 4️⃣ INACTIVE USER EMAIL (DAILY 7 AM) */
+/* ------------------------------------------------ */
+
 cron.schedule("0 7 * * *", async () => {
   console.log("Running Inactive User Engagement Cron Job...");
 
@@ -143,28 +238,44 @@ cron.schedule("0 7 * * *", async () => {
     });
 
     if (inactiveUsers.length === 0) {
-      console.log("No inactive users.");
+      console.log("No inactive users");
       return;
     }
 
     await Promise.all(
       inactiveUsers.map(async (user) => {
+        const emailKey = `inactiveEmail:${user.email}`;
+
+        let alreadySent = false;
         try {
-          await sendEmail(
-            user.email,
-            "We Miss You! Come Back to Blinkit",
-            `<h2>Hi ${user.name}!</h2>
-             <p>We noticed you haven't visited us in a while.</p>
-             <p>Come back and explore new deals waiting for you!</p>`
-          );
+            alreadySent = await redisClient.get(emailKey);
         } catch (err) {
-          console.error(`Engagement email failed for ${user.email}:`, err.message);
+             console.error(`Redis Get Error (Inactive Check for ${user.email}):`, err.message);
         }
-      })
+
+        if (alreadySent) {
+          console.log("Already sent engagement email:", user.email);
+          return;
+        }
+
+        await sendEmail(
+          user.email,
+          "We Miss You at Blinkit!",
+          `<h2>Hello ${user.name}</h2>
+           <p>It's been a while since you visited us.</p>
+           <p>Come back and check out our new deals waiting for you!</p>`,
+        );
+
+        try {
+            await redisClient.setEx(emailKey, 86400, "sent");
+        } catch (err) {
+             console.error(`Redis Set Error (Inactive check for ${user.email}):`, err.message);
+        }
+      }),
     );
 
-    console.log("Inactive user emails sent.");
-  } catch (error) {
-    console.error("Engagement email cron error:", error);
+    console.log("Inactive user emails sent");
+  } catch (err) {
+    console.error("Inactive user cron error:", err);
   }
 });
