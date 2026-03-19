@@ -1,6 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const http = require("http");
+const { Server } = require("socket.io");
+
+const chatRoutes = require("./routes/chatRoutes");
+const chatSocket = require("./sockets/ChatSocket");
 
 const connectDB = require("./config/db");
 const { verifyToken, verifyAdmin } = require("./middleware/verifyToken");
@@ -18,6 +23,9 @@ const redisClient = require("./config/RedisClient");
 // const { cache } = require("react");
 
 const app = express();
+
+const server = http.createServer(app);
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -41,7 +49,7 @@ app.use(
 );
 
 // app.use(cors());
-app.use(express.json());
+// app.use(express.json());
 
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
 console.log("MONGO_URI:", process.env.MONGO_URI);
@@ -52,6 +60,15 @@ require("./services/cronJobs"); // Initialize cron jobs
 
 app.use("/", authRoutes);
 app.use("/", chatbotRoutes);
+app.use("/", chatRoutes);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+  },
+});
+
+chatSocket(io);
 
 app.get("/", (req, res) => {
   res.send("Blinkit Backend Running");
@@ -131,7 +148,7 @@ app.post("/AdminCart", verifyToken, verifyAdmin, async (req, res) => {
     try {
       await redisClient.del("products");
     } catch (err) {
-        console.error("Redis Error invalidating cache:", err.message);
+      console.error("Redis Error invalidating cache:", err.message);
     }
     res.json({ message: "Product created" });
   } catch (err) {
@@ -154,13 +171,13 @@ app.get("/AdminCart", async (req, res) => {
       return res.json(JSON.parse(cachedProducts));
     }
     const products = await Product.find().lean();
-    
+
     try {
       await redisClient.setEx(cacheKey, 100, JSON.stringify(products));
     } catch (err) {
       console.error("Redis Set Error (GET /AdminCart):", err.message);
     }
-    
+
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -244,7 +261,7 @@ app.get("/Dashboard", verifyToken, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000; // Use the dynamic port first!
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
