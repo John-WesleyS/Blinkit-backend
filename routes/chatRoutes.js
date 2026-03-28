@@ -8,8 +8,8 @@ const Message = require("../models/Message");
 
 // ✅ Create or Get Conversation
 router.post("/conversation", verifyToken, async (req, res) => {
-  const userId = req.user.id;
-  const adminId = req.body.adminId || "admin_1"; // Default admin if not specified
+  const userId = req.user.id; // ✅ from JWT
+  const { adminId } = req.body;
 
   try {
     let convo = await Conversation.findOne({
@@ -44,8 +44,24 @@ router.get("/messages/:conversationId", verifyToken, async (req, res) => {
 // ✅ ADMIN: Get all conversations
 router.get("/conversations", verifyToken, verifyAdmin, async (req, res) => {
   try {
-    const convos = await Conversation.find().sort({ updatedAt: -1 });
-    res.json(convos);
+    const conversations = await Conversation.find().lean();
+
+    const updated = await Promise.all(
+      conversations.map(async (conv) => {
+        const lastMessage = await Message.findOne({
+          conversationId: conv._id,
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+
+        return {
+          ...conv,
+          lastMessage: lastMessage || null,
+        };
+      }),
+    );
+
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
